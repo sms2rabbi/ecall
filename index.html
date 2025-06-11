@@ -1,1 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TradingView Clone Chart</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #0d1117;
+    }
+    canvas {
+      display: block;
+      background-color: #0d1117;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="chart"></canvas>
+  
+  
+  <script>
+    
+  const canvas = document.getElementById("chart");
+const ctx = canvas.getContext("2d");
 
+// === Configuration ===
+let cellWidth = 80;
+const aspectRatio = 100 / 80; // Preserve 100:80 ratio
+let cellHeight = cellWidth * aspectRatio;
+const gridColor = "#2d2f34";
+const backgroundColor = "#0f1114";
+
+// Scroll & Zoom Settings
+let offsetX = 0;
+let offsetY = 0; // For future vertical scroll
+const scrollSpeed = 40;
+const zoomFactor = 1.1;
+const minCellWidth = 20;
+const maxCellWidth = 300;
+
+let needsRedraw = true;
+
+function updateCellHeight() {
+  cellHeight = cellWidth * aspectRatio;
+}
+
+// Canvas resizing with HiDPI support
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  needsRedraw = true;
+}
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+// Zoom & Scroll interaction
+canvas.addEventListener("wheel", (e) => {
+  const mouseX = e.offsetX;
+
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const prevWidth = cellWidth;
+    cellWidth *= e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
+    cellWidth = Math.max(minCellWidth, Math.min(maxCellWidth, cellWidth));
+    updateCellHeight();
+
+    // Zoom centered around mouse
+    const zoomRatio = cellWidth / prevWidth;
+    offsetX = mouseX - (mouseX - offsetX) * zoomRatio;
+  } else {
+    offsetX += e.deltaY > 0 ? scrollSpeed : -scrollSpeed;
+  }
+
+  needsRedraw = true;
+});
+  
+
+// Draw grid lines
+function drawGrid() {
+  const dpr = window.devicePixelRatio || 1;
+  const screenWidth = canvas.width / dpr;
+  const screenHeight = canvas.height / dpr;
+
+  // Fill background
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, screenWidth, screenHeight);
+
+  // Grid style
+  ctx.strokeStyle = gridColor;
+
+  const baseCellWidth = 80;
+  ctx.lineWidth = 0.3 / (cellWidth / 80);  // 80 হল আপনার baseCellWidth
+  const align = (val) => Math.floor(val) + 0.5;
+
+  const numCols = Math.ceil(screenWidth / cellWidth) + 4;
+  const numRows = Math.ceil(screenHeight / cellHeight) + 4;
+
+  const startX = -((offsetX % cellWidth + cellWidth) % cellWidth);
+  const startY = -((offsetY % cellHeight + cellHeight) % cellHeight);
+
+  // Vertical lines
+  for (let i = -2; i <= numCols; i++) {
+    const x = align(startX + i * cellWidth);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, screenHeight);
+    ctx.stroke();
+  }
+
+  // Horizontal lines
+  for (let i = -2; i <= numRows; i++) {
+    const y = align(startY + i * cellHeight);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(screenWidth, y);
+    ctx.stroke();
+  }
+}
+
+  
+// Central draw function
+function draw() {
+  if (!needsRedraw) return;
+  drawGrid();
+  needsRedraw = false;
+}
+
+// Animation loop with conditional redraw
+function animate() {
+  requestAnimationFrame(animate);
+  draw();
+}
+
+animate();
+
+// ========== Helpers for future ==========
+
+function getCandleX(index) {
+  return index * cellWidth - offsetX;
+}
+
+canvas.addEventListener("mousemove", (e) => {
+  const mouseX = e.offsetX + offsetX;
+  const mouseY = e.offsetY + offsetY;
+  // console.log("Mouse chart position:", mouseX, mouseY);
+});
+  
+  </script>
+</body>
+</html>
